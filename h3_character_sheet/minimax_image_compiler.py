@@ -9,7 +9,7 @@ from .on_compiler_13 import compile_reference13_state
 from .state_13 import applicable_settings, effective_views, part_views, serialize_reference13_state
 from .reference_compiler import STYLE_PROMPTS
 from .appearance_policy_13 import ROLE_NAMES, build_appearance_policy
-from .view_catalog_13 import BODY_IDS, NATURAL_SURFACE, NATURAL_VIEW_PROMPTS, PORTRAIT_IDS, PRESETS, VIEW_IDS
+from .view_catalog_13 import BODY_IDS, BUST_IDS, NATURAL_SURFACE, NATURAL_VIEW_PROMPTS, PORTRAIT_IDS, PRESETS, VIEW_IDS
 
 RESOLUTION_PROFILES = ('current', 'high', 'max_8mp', 'max_16mp')
 EIGHT_MP = 8_000_000
@@ -25,7 +25,11 @@ VIEW_PROMPTS = {
     'face_back': 'Portrait from behind, complete head and shoulders.',
     'body_front': 'Full body facing forward, standing, complete figure visible.',
     'body_left': 'Full body in profile facing image-right, standing, complete figure visible.',
+    'body_3q_left': 'Full body three-quarter view angled toward image-right, standing, complete figure visible.',
+    'body_right': 'Full body in profile facing image-left, standing, complete figure visible.',
+    'body_3q_right': 'Full body three-quarter view angled toward image-left, standing, complete figure visible.',
     'body_back': 'Full body from behind, standing, complete figure visible.',
+    'bust_front': 'Isolated close-up of the chest from the front, cropped at the shoulders and below the ribcage; no head, arms below the shoulders, or legs.',
     'clothing_front': 'Extract the front of the outfit onto a white background. No human. The outfit is flat.',
     'clothing_back': 'Extract the back of the outfit onto a white background. No human. The outfit is flat.',
     'hands': 'Close-up of both hands, including their coverings when present in the reference.',
@@ -205,9 +209,10 @@ def compile_minimax_image_state(state_json, **kwargs):
         lines.append('Follow selected settings first, then compatible part instructions, then dedicated references. '
                      'If dedicated references for the same role conflict, prefer the later input.')
     columns = _arranged_columns(result['semantic_layout'])
+    legacy_sheet = set(views) <= set(VIEW_IDS) and not (set(views) & set(BUST_IDS))
     portrait_rows = (natural and result['guide_enabled'] and 'body_left' in overrides
                      and [len(column) for column in columns] == [3, 3, 1, 1, 1, 2]
-                     and set(views) == set((*PORTRAIT_IDS, *BODY_IDS, 'hands', 'feet')))
+                     and legacy_sheet)
     if not (single or all_views or hand_foot_pair):
         placement = 'Arrange columns from left to right; within a stacked column, read top to bottom:'
         if natural and len(views) == 11:
@@ -220,7 +225,7 @@ def compile_minimax_image_state(state_json, **kwargs):
                                  'Separate the finished views with plain white space. Omit all guide outlines and divider lines.')
             default_body_views = [label for view, label in (('body_front', 'front'), ('body_left', 'side'), ('body_back', 'back'))
                                   if view not in overrides]
-            if len(default_body_views) == len(BODY_IDS):
+            if len(default_body_views) == 3:
                 placement = 'Use the same stance and limb arrangement as <Picture 1> across all three full-body views. ' + placement
             elif default_body_views:
                 targets = ' and '.join(f'full-body {label} view' for label in default_body_views)

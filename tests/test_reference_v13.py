@@ -219,7 +219,9 @@ class V13Tests(unittest.TestCase):
                         self.assertTrue(min(x+w,xx+ww)-max(x,xx)<0.000003 or min(y+h,yy+hh)-max(y,yy)<0.000003)
 
     def test_auto_body_guide_reaches_requested_height(self):
-        for views in [['body_front'],['body_back'],['body_front','body_left','body_back'],list(VIEW_IDS)]:
+        # bust_front is a detail view: its panel is intentionally shorter than the body height.
+        canonical_bodies = ['body_front', 'body_left', 'body_back']
+        for views in [['body_front'],['body_back'],['body_front','body_left','body_back'],canonical_bodies + ['body_3q_left','body_right','body_3q_right']]:
             state=copy.deepcopy(DEFAULT_STATE);state['views']=views
             result=compile_reference_v13_state(json.dumps(state),use_layout_image=True)
             for p in result['guide_geometry']['panels']:

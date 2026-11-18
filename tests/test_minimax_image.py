@@ -11,6 +11,7 @@ from h3_character_sheet.on_compiler_13 import compile_reference13_state
 from h3_character_sheet.reference_v13_compiler import compile_reference_v13_state
 from h3_character_sheet.state_13 import DEFAULT_STATE, serialize_reference13_state
 from h3_character_sheet.view_catalog_13 import PRESETS, VIEW_IDS
+LEGACY_VIEW_IDS = ('face_front', 'face_left', 'face_right', 'face_3q_left', 'face_3q_right', 'face_back', 'body_front', 'body_left', 'body_back', 'clothing_front', 'clothing_back', 'hands', 'feet')
 
 
 class MiniMaxImageTests(unittest.TestCase):
@@ -113,18 +114,18 @@ class MiniMaxImageTests(unittest.TestCase):
             self.assertIn('The lower-left panel. One reserved view area.', result['prompt'])
 
     def test_no_clothing_uses_eleven_views_and_preserves_saved_choices(self):
-        state = {**DEFAULT_STATE, 'views': list(VIEW_IDS), 'clothing_type': 'none',
+        state = {**DEFAULT_STATE, 'views': list(LEGACY_VIEW_IDS), 'clothing_type': 'none',
                  'hand_state': 'gloved', 'footwear_state': 'unshod',
                  'view_prompts': {'clothing_front': 'Keep this clothing edit', 'face_front': 'Custom portrait'},
                  'part_prompts': {'upper_clothing': 'Gold jacket', 'back_clothing': 'Silver jacket',
                                   'lower_body': 'Dark leg markings'}}
-        expected = [view for view in VIEW_IDS if not view.startswith('clothing_')]
+        expected = [view for view in LEGACY_VIEW_IDS if not view.startswith('clothing_')]
         for compile_state in (compile_minimax_image_state, compile_reference_v13_state):
             with self.subTest(compiler=compile_state.__name__):
                 off, on = [compile_state(json.dumps(state), use_layout_image=enabled) for enabled in (False, True)]
                 for result in (off, on):
                     saved = json.loads(result['state_json'])
-                    self.assertEqual(saved['views'], list(VIEW_IDS))
+                    self.assertEqual(saved['views'], list(LEGACY_VIEW_IDS))
                     self.assertEqual(saved['view_prompts'], state['view_prompts'])
                     self.assertEqual(saved['part_prompts'], state['part_prompts'])
                     self.assertEqual([p['id'] for p in result['layout']['panels']], expected)
@@ -143,7 +144,7 @@ class MiniMaxImageTests(unittest.TestCase):
                     guide = render_reference13_guide(on['guide_geometry'], on['layout'])
                 self.assertEqual(guide.size, (on['width'], on['height']))
                 restored = compile_state(json.dumps({**saved, 'clothing_type': 'reference'}))
-                self.assertEqual([p['id'] for p in restored['layout']['panels']], list(VIEW_IDS))
+                self.assertEqual([p['id'] for p in restored['layout']['panels']], list(LEGACY_VIEW_IDS))
                 self.assertIn('Keep this clothing edit', restored['prompt'])
                 self.assertIn('Gold jacket', restored['prompt'])
 
@@ -165,7 +166,7 @@ class MiniMaxImageTests(unittest.TestCase):
             compile_reference13_state(raw)
 
     def test_minimax_eleven_view_guide_matches_the_reference_stance(self):
-        state = {**DEFAULT_STATE, 'views': list(VIEW_IDS), 'clothing_type': 'none',
+        state = {**DEFAULT_STATE, 'views': list(LEGACY_VIEW_IDS), 'clothing_type': 'none',
                  'size': {**DEFAULT_STATE['size'], 'mode': 'manual', 'manual_width': 4224, 'manual_height': 1280}}
         on = compile_minimax_image_state(json.dumps(state), use_layout_image=True)
         off = compile_minimax_image_state(json.dumps(state), use_layout_image=False)
@@ -177,7 +178,7 @@ class MiniMaxImageTests(unittest.TestCase):
         self.assertNotIn('<Picture 2>', off['prompt'])
 
     def test_minimax_eleven_view_stance_applies_only_to_unedited_body_views(self):
-        state = {**DEFAULT_STATE, 'views': list(VIEW_IDS), 'clothing_type': 'none'}
+        state = {**DEFAULT_STATE, 'views': list(LEGACY_VIEW_IDS), 'clothing_type': 'none'}
         seated = 'Full-body side view seated on the ground.'
         for guide in (False, True):
             for overrides, expected_scope in (
@@ -201,7 +202,7 @@ class MiniMaxImageTests(unittest.TestCase):
                     self.assertEqual(json.loads(result['state_json'])['view_prompts'], overrides)
 
     def test_minimax_guided_eleven_view_side_edit_assigns_each_portrait_slot(self):
-        state = {**DEFAULT_STATE, 'views': list(VIEW_IDS), 'clothing_type': 'none',
+        state = {**DEFAULT_STATE, 'views': list(LEGACY_VIEW_IDS), 'clothing_type': 'none',
                  'view_prompts': {'body_left': 'Full-body side view seated on the ground.',
                                   'face_front': 'Custom front portrait.'}}
         for guide in (False, True):
@@ -229,7 +230,7 @@ class MiniMaxImageTests(unittest.TestCase):
                     self.assertEqual(len(result['view_prompts']), 11)
 
     def test_reference_v13_eleven_view_close_up_column_without_guide(self):
-        state = {**DEFAULT_STATE, 'views': list(VIEW_IDS), 'clothing_type': 'none'}
+        state = {**DEFAULT_STATE, 'views': list(LEGACY_VIEW_IDS), 'clothing_type': 'none'}
         off = compile_reference_v13_state(json.dumps(state), use_layout_image=False)
         on = compile_reference_v13_state(json.dumps(state), use_layout_image=True)
         cue = 'Reserve the far-right column for two separate close-ups'
@@ -240,6 +241,9 @@ class MiniMaxImageTests(unittest.TestCase):
 
     def test_auto_profiles_preserve_layout_and_order_at_all_presets(self):
         presets = {**PRESETS, 'seven': (*DEFAULT_STATE['views'], 'hands', 'feet')}
+        # 'detail' now selects 17 views whose auto canvas already exceeds the 8 MP
+        # window; resolution scaling is capped by MAX_AUTO_PIXELS there.
+        presets.pop('detail')
         for name, views in presets.items():
             state = {**DEFAULT_STATE, 'views': list(views)}
             for guide in (False, True):
@@ -330,7 +334,7 @@ class MiniMaxImageTests(unittest.TestCase):
         result = compile_minimax_image_state(json.dumps(state))
         self.assertEqual((result['width'], result['height']), (512, 2048))
         self.assertEqual({s.split(':', 1)[0] for s in result['view_prompts']}, set(VIEW_IDS))
-        self.assertEqual(len(result['view_prompts']), 13)
+        self.assertEqual(len(result['view_prompts']), 17)  # 13 legacy + 4 turnaround/bust
         self.assertNotRegex(result['prompt'], r'\d+\.\d+')
 
     def test_all_views_without_guide_describe_the_four_blocks(self):

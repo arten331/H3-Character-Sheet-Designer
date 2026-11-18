@@ -61,7 +61,7 @@ class Reference13PromptContractTests(unittest.TestCase):
     def test_all_thirteen_have_distinct_inventory_and_instructions(self):
         for guide in (False, True):
             p = self.result(VIEW_IDS, guide)['prompt']
-            self.assertIn('6 head-and-chest views + 3 full-body views + 2 clothing-detail views + 1 paired-hands detail + 1 paired-feet/footwear detail = 13', p)
+            self.assertIn('6 head-and-chest views + 6 full-body views + 1 bust-detail views + 2 clothing-detail views + 1 paired-hands detail + 1 paired-feet/footwear detail = 17', p)
             for view in VIEW_IDS:
                 self.assertEqual(p.count(f'Panel {view}:'), 1)
             self.assertIn('Front and rear clothing details are separate required depictions', p)

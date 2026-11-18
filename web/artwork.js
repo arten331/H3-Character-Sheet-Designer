@@ -17,12 +17,15 @@ export const ARTWORK_RECTS = Object.freeze({
   feet: Object.freeze([860, 820, 380, 340]),
 });
 let artworkSequence = 0;
-const EXTRA_VIEWS = new Set(['face_right', 'face_3q_left', 'face_3q_right', 'face_back', 'clothing_front', 'clothing_back']);
+const EXTRA_VIEWS = new Set(['face_right', 'face_3q_left', 'face_3q_right', 'face_back', 'clothing_front', 'clothing_back',
+  // Extended turnaround views have no dedicated mannequin artwork yet; reuse the
+  // canonical body card bitmap as a placeholder so the cards stay selectable.
+  'body_3q_left', 'body_right', 'body_3q_right', 'bust_front']);
 export const ATLAS_URL = new URL('./assets/mannequin-atlas.png', import.meta.url).href;
 
 export function artworkRect(view) {
-  if (!VIEW_IDS.includes(view)) throw new RangeError(`Unknown artwork view: ${view}`);
-  return ARTWORK_RECTS[view];
+  if (!VIEW_IDS.includes(view) && !EXTRA_VIEWS.has(view)) throw new RangeError(`Unknown artwork view: ${view}`);
+  return ARTWORK_RECTS[view] ?? ARTWORK_RECTS.body_front;
 }
 
 export function createArtwork(view, idPrefix, {mirror = false, crop = null} = {}) {

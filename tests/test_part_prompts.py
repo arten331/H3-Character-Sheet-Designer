@@ -38,7 +38,7 @@ class PartStateTests(unittest.TestCase):
 
     def test_fixed_canonical_part_contract(self):
         self.assertEqual(PART_IDS, ("head_hair", "face", "upper_clothing", "back_clothing",
-                                    "lower_body", "hands", "footwear", "other"))
+                                    "lower_body", "hands", "footwear", "chest", "other"))
         self.assertEqual(tuple(PART_RULES), PART_IDS)
         self.assertEqual(PART_PROMPT_MAX_UNITS, 1000)
         self.assertEqual(STATE_MAX_BYTES, 65536)
@@ -142,7 +142,7 @@ class PartPromptTests(unittest.TestCase):
         cases.update(hands_and_feet=["hands", "feet"], both_portraits=PORTRAIT_IDS,
                      left_portrait_and_feet=["face_left", "feet"],
                      legacy_six_views=[view for view in VIEW_IDS if view != "face_left"])
-        self.assertEqual(len(cases), 16)
+        self.assertEqual(len(cases), 19)  # 13 legacy + 3 new presets + 4 new single-view snapshots
         for name, views in cases.items():
             with self.subTest(snapshot=name):
                 expected = (Path(__file__).with_name("snapshots") / f"{name}.txt").read_text(encoding="utf-8").encode("utf-8")

@@ -5,6 +5,12 @@ BODY_CROPS = {
     'body_front': (514, 40, 315, 597),
     'body_left': (1033, 48, 109, 588),
     'body_back': (71, 648, 317, 580),
+    # New turnaround views reuse the canonical body crops as guide placeholders;
+    # dedicated mannequin artwork can replace them later without contract changes.
+    'body_3q_left': (514, 40, 315, 597),
+    'body_right': (1033, 48, 109, 588),
+    'body_3q_right': (514, 40, 315, 597),
+    'bust_front': (514, 40, 315, 597),
 }
 MIRRORED_VIEWS = ('face_left', 'face_right', 'face_3q_left', 'face_3q_right', 'body_left')
 

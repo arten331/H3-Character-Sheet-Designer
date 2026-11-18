@@ -120,7 +120,7 @@ def part_views(state, part):
         'upper_clothing': (*PORTRAIT_IDS[2:], *CLOTHING_IDS),
         'back_clothing': ('face_back', 'clothing_back'), 'lower_body': CLOTHING_IDS,
         'hands': CLOTHING_IDS if state['clothing_mode'] == 'worn' else (),
-        'footwear': (), 'other': VIEW_IDS,
+        'footwear': (), 'chest': (), 'other': VIEW_IDS,
     }
     eligible = (*PART_RULES[part]['views'], *extra[part])
     if state['clothing_mode'] == 'garment' and part in ('head_hair', 'face', 'hands', 'footwear'):

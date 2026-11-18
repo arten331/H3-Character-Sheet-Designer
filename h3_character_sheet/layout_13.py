@@ -3,7 +3,7 @@ from fractions import Fraction
 
 from .compiler import DEFAULT_MAX_RESOLUTION, _ceil_32, _round_coordinate, _size_value, compute_layout
 from .state_13 import legacy_state
-from .view_catalog_13 import BODY_IDS, CLOTHING_IDS, LEGACY_VIEW_IDS, PORTRAIT_IDS, VIEW_DETAILS
+from .view_catalog_13 import BODY_IDS, BUST_IDS, CLOTHING_IDS, LEGACY_VIEW_IDS, PORTRAIT_IDS, VIEW_DETAILS
 
 
 def compute_semantic_layout(state, *, max_resolution=DEFAULT_MAX_RESOLUTION, separate_details=False):
@@ -14,6 +14,7 @@ def compute_semantic_layout(state, *, max_resolution=DEFAULT_MAX_RESOLUTION, sep
     margin, gap, body_w, aux_w = h / 14, h / 25, 2 * h / 5, h / 2
     portraits = [view for view in PORTRAIT_IDS if view in views]
     bodies = [view for view in BODY_IDS if view in views]
+    busts = [view for view in BUST_IDS if view in views]
     clothes = [view for view in CLOTHING_IDS if view in views]
     details = [view for view in ('hands', 'feet') if view in views]
     groups = []
@@ -26,6 +27,9 @@ def compute_semantic_layout(state, *, max_resolution=DEFAULT_MAX_RESOLUTION, sep
                         for i, view in enumerate(portraits)}))
     for view in (*bodies, *clothes):
         groups.append((body_w, {view: (Fraction(0), Fraction(0), body_w, h)}))
+    if busts:
+        bust_h = h / 3
+        groups.append((aux_w, {view: (Fraction(0), Fraction(0), aux_w, bust_h) for view in busts}))
     if details:
         cell_h = (h - (len(details) - 1) * gap) / len(details)
         groups.append((aux_w, {view: (Fraction(0), i * (cell_h + gap), aux_w, cell_h)

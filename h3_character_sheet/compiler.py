@@ -18,45 +18,54 @@ EXPERIMENTAL_PIXEL_THRESHOLD = 1_032_192
 VIEW_IDS = ("face_front", "face_left", "body_front", "body_left", "body_back", "hands", "feet")
 PORTRAIT_IDS = ("face_front", "face_left")
 BODY_IDS = ("body_front", "body_left", "body_back")
+# Extended turnaround family (Reference13 only): three canonical body views plus
+# mirrored and three-quarter angles and a dedicated bust detail view.
+BODY_TURN_IDS = ("body_front", "body_left", "body_3q_left", "body_right", "body_3q_right", "body_back")
+BUST_IDS = ("bust_front",)
 AUXILIARY_IDS = (*PORTRAIT_IDS, "hands", "feet")
-PART_IDS = ("head_hair", "face", "upper_clothing", "back_clothing", "lower_body", "hands", "footwear", "other")
+PART_IDS = ("head_hair", "face", "upper_clothing", "back_clothing", "lower_body", "hands", "footwear", "chest", "other")
 # These rules are the single source of truth for panel JSON and panel prose.
 # Visibility is a camera/anatomy constraint, never inferred from free-form text.
 PART_RULES = {
     "head_hair": {
         "label": "head, hair, and headwear",
-        "views": (*PORTRAIT_IDS, *BODY_IDS),
+        "views": (*PORTRAIT_IDS, *BODY_TURN_IDS),
         "scope": "Apply only to the head, hair, and headwear where visible from this panel's assigned camera angle.",
     },
     "face": {
         "label": "face",
-        "views": (*PORTRAIT_IDS, *BODY_IDS),
+        "views": (*PORTRAIT_IDS, *BODY_TURN_IDS),
         "scope": "Apply only to facial areas actually visible from this panel's assigned camera angle; do not turn the head or reveal the face in a rear view.",
     },
     "upper_clothing": {
         "label": "upper clothing",
-        "views": (*PORTRAIT_IDS, *BODY_IDS),
+        "views": (*PORTRAIT_IDS, *BODY_TURN_IDS, *BUST_IDS),
         "scope": "Apply only to visible upper clothing. A back_clothing directive is more specific on the rear clothing surface.",
     },
     "back_clothing": {
         "label": "rear clothing surface",
-        "views": ("body_left", "body_back"),
-        "scope": "Apply only to the rear clothing surface: in body_left only where that rear surface is visible from the fixed left-profile camera, and in body_back. Never move this rear-surface design onto the front, side surface, or portraits; do not turn the subject to reveal it.",
+        "views": ("body_left", "body_3q_left", "body_back"),
+        "scope": "Apply only to the rear clothing surface: in body_left and body_3q_left only where that rear surface is visible from the fixed left-facing camera, and in body_back. Never move this rear-surface design onto the front, side surface, or portraits; do not turn the subject to reveal it.",
     },
     "lower_body": {
         "label": "lower body and lower clothing",
-        "views": BODY_IDS,
+        "views": BODY_TURN_IDS,
         "scope": "Apply only to the visible lower body and lower clothing, excluding the separate footwear part.",
     },
     "hands": {
         "label": "hands, gloves, and hand accessories",
-        "views": (*BODY_IDS, "hands"),
+        "views": (*BODY_TURN_IDS, "hands"),
         "scope": "Apply only to hands, gloves, and hand accessories where visible from this panel's assigned camera angle.",
     },
     "footwear": {
         "label": "feet and footwear",
-        "views": (*BODY_IDS, "feet"),
+        "views": (*BODY_TURN_IDS, "feet"),
         "scope": "Apply only to feet and footwear wherever visible, including full-body views independently of whether a separate feet detail panel is selected.",
+    },
+    "chest": {
+        "label": "chest and bust",
+        "views": (*BODY_TURN_IDS, *BUST_IDS),
+        "scope": "Apply only to the chest and bust where visible from this panel's assigned camera angle; preserve the reference bust size, shape and skin details.",
     },
     "other": {
         "label": "other appearance details",
@@ -72,6 +81,9 @@ PRESETS = {
     "detail": VIEW_IDS,
     "turnaround": BODY_IDS,
     "single": ("body_front",),
+    "turnaround6": BODY_TURN_IDS,
+    "bust": BUST_IDS,
+    "body9": (*BODY_TURN_IDS, *BUST_IDS, "hands", "feet"),
 }
 DEFAULT_STATE = {
     "schema_version": 1,
@@ -105,6 +117,22 @@ VIEW_DETAILS = {
     "body_back": (
         "full-body back",
         "Show <Subject 1> directly from behind in a neutral standing pose, entirely visible from the top of the head to the soles of the footwear.",
+    ),
+    "body_3q_left": (
+        "full-body left three-quarter",
+        "Show <Subject 1> in a full-body three-quarter standing view at 45 degrees, chest angled toward the subject's front-left. Both arms visible with the farther arm foreshortened; not a strict profile or front view. Entirely visible from the top of the head to the soles of the footwear.",
+    ),
+    "body_right": (
+        "full-body anatomical right profile",
+        "Show <Subject 1> in a strict right-profile neutral standing pose, camera looking directly at the subject's anatomical right side, entirely visible from the top of the head to the soles of the footwear. Preserve asymmetric features rather than mirroring the person.",
+    ),
+    "body_3q_right": (
+        "full-body right three-quarter",
+        "Show <Subject 1> in a full-body three-quarter standing view at 45 degrees, chest angled toward the subject's front-right. Preserve asymmetric features rather than mirroring the person. Entirely visible from the top of the head to the soles of the footwear.",
+    ),
+    "bust_front": (
+        "bust detail",
+        "Show an isolated close-up of <Subject 1>'s chest from the front, cropped at the shoulders and below the ribcage. No head, arms below the shoulders, or legs. Preserve the reference bust size, shape and skin details.",
     ),
     "hands": (
         "left and right hand details",
@@ -220,7 +248,7 @@ def parse_state(state_json: str, *, max_resolution: int = DEFAULT_MAX_RESOLUTION
         raise StateValidationError("views must be an array of view-ID strings.", "invalid_type")
     if not views:
         raise StateValidationError("Select at least one view.", "empty_views")
-    unknown = set(views) - set(VIEW_IDS)
+    unknown = set(views) - set(VIEW_IDS) - set(BODY_TURN_IDS) - set(BUST_IDS)
     if unknown:
         raise StateValidationError(f"Unknown view IDs: {', '.join(sorted(unknown))}.", "unknown_view")
     size = state["size"]
@@ -230,7 +258,8 @@ def parse_state(state_json: str, *, max_resolution: int = DEFAULT_MAX_RESOLUTION
     normalized_size = {"mode": size["mode"]}
     for key in ("body_height", "manual_width", "manual_height"):
         normalized_size[key] = _size_value(size[key], f"size.{key}", max_resolution)
-    normalized = {"schema_version": version, "views": [view for view in VIEW_IDS if view in views], "size": normalized_size}
+    known_order = (*VIEW_IDS, *[v for v in BODY_TURN_IDS if v not in VIEW_IDS], *[v for v in BUST_IDS if v not in VIEW_IDS])
+    normalized = {"schema_version": version, "views": [view for view in known_order if view in views], "size": normalized_size}
     if version == 2:
         prompts = state["part_prompts"]
         if type(prompts) is not dict:
@@ -275,12 +304,13 @@ def _ideal_layout(views: list[str], h: int) -> tuple[Fraction, Fraction, dict[st
     auxiliaries = [view for view in AUXILIARY_IDS if view in views]
     portraits = [view for view in PORTRAIT_IDS if view in views]
     details = [view for view in ("hands", "feet") if view in views]
-    bodies = [view for view in BODY_IDS if view in views]
+    bodies = [view for view in BODY_TURN_IDS if view in views]
+    busts = [view for view in BUST_IDS if view in views]
     # Each portrait has its own column. Existing selections without face_left
     # retain the exact original geometry, including the six-view detail layout.
     aux_columns = len(portraits) or bool(details)
-    columns = len(bodies) + aux_columns
-    width = len(bodies) * body_width + aux_columns * aux_width + (columns - 1) * gap + 2 * margin
+    columns = len(bodies) + bool(busts) + aux_columns
+    width = len(bodies) * body_width + bool(busts) * aux_width + aux_columns * aux_width + (columns - 1) * gap + 2 * margin
     canvas_height = height + 2 * margin
     rects: dict[str, tuple[Fraction, ...]] = {}
     x, y = margin, margin
@@ -302,6 +332,10 @@ def _ideal_layout(views: list[str], h: int) -> tuple[Fraction, Fraction, dict[st
         else:
             rects[auxiliaries[0]] = (x, y, aux_width, height)
         x += group_width + gap
+    for view in busts:
+        bust_height = height / 3
+        rects[view] = (x, y, aux_width, bust_height)
+        x += aux_width + gap
     for view in bodies:
         rects[view] = (x, y, body_width, height)
         x += body_width + gap
@@ -396,7 +430,8 @@ def _layout_prose(state: dict[str, Any], layout: dict[str, Any]) -> list[str]:
     auxiliaries = [view for view in AUXILIARY_IDS if view in views]
     portraits = [view for view in PORTRAIT_IDS if view in views]
     details = [view for view in ("hands", "feet") if view in views]
-    bodies = [view for view in BODY_IDS if view in views]
+    busts = [view for view in BUST_IDS if view in views]
+    bodies = [view for view in BODY_TURN_IDS if view in views]
     lines = []
     if auxiliaries:
         lines.append("Place the selected portrait and/or detail views in the leftmost auxiliary " + ("columns." if len(portraits) == 2 else "column."))
@@ -411,6 +446,10 @@ def _layout_prose(state: dict[str, Any], layout: dict[str, Any]) -> list[str]:
             lines.append("Stack the hand details above the feet/footwear details, with clear empty space between them.")
         elif len(auxiliaries) == 1:
             lines.append("The single selected auxiliary view uses the full height of its column.")
+    if busts:
+        ordered = ", then ".join(VIEW_DETAILS[view][0] for view in busts)
+        lines.append(f"Arrange the bust-detail columns from left to right as {ordered}"
+                     + (", before the full-body columns." if bodies else "."))
     if bodies:
         ordered = ", then ".join(VIEW_DETAILS[view][0] for view in bodies)
         lines.append(f"Arrange the full-body columns from left to right as {ordered}" + (", to the right of the auxiliary " + ("columns." if len(portraits) == 2 else "column.") if auxiliaries else "."))

@@ -70,7 +70,7 @@ class Reference13Tests(unittest.TestCase):
                     self.assertTrue(x+w <= u+0.000002 or u+bw <= x+0.000002 or y+h <= v+0.000002 or v+bh <= y+0.000002)
 
     def test_dimensions_and_core_limit(self):
-        cases = [('basic', 1120, (2208, 1280)), ('five', 1120, (2816, 1280)), ('detail', 1120, (4416, 1280)), ('five', 672, (1696, 768))]
+        cases = [('basic', 1120, (2208, 1280)), ('five', 1120, (2816, 1280)), ('detail', 1120, (6496, 1280)), ('five', 672, (1696, 768))]
         from h3_character_sheet.view_catalog_13 import PRESETS
         for preset, h, dimensions in cases:
             state = self.state(views=list(PRESETS[preset])); state['size']['body_height'] = h

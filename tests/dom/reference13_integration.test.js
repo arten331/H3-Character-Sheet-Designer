@@ -155,6 +155,7 @@ domTest('P-H3 v1.5.0 has object-only clothing cards, screen directions and a ded
   assert(h.requests.every(r => r.path === '/h3_character_sheet_designer/v1_3/preview'));
 });
 
+const LEGACY_13 = ['face_front','face_left','face_right','face_3q_left','face_3q_right','face_back','body_front','body_left','body_back','clothing_front','clothing_back','hands','feet'];
 domTest('No clothing preserves 13 saved views and validates 11 preview panels in both current nodes', async t => {
   const h = setup(); t.after(h.cleanup);
   const legacy = h.node();
@@ -170,7 +171,9 @@ domTest('No clothing preserves 13 saved views and validates 11 preview panels in
     assert.equal(original.value, clothingOnly);
     assert.equal(shape.value, 'reference');
     assert(root.textContent.includes('Select at least one non-clothing view.'));
-    choose(preset, 'detail');
+    // Select exactly the legacy thirteen views via saved JSON (detail now selects 17).
+    const legacyJson = JSON.stringify({schema_version:3, views: LEGACY_13, size:{mode:'auto',body_height:1120,manual_width:2208,manual_height:1280}, part_prompts:{}, hand_state:'reference', clothing_mode:'worn', clothing_type:'reference', footwear_state:'reference'});
+    original.value = legacyJson; item.onConfigure();
     const earlier = h.requests.length - 1;
     choose(shape, 'none');
     const current = h.requests.length - 1;
@@ -200,10 +203,16 @@ domTest('No clothing preserves 13 saved views and validates 11 preview panels in
 domTest('V1.3 presets match MOSS order and select the corresponding views', t => {
   const h=setup();t.after(h.cleanup);const {item,record}=h.node('H3CharacterSheetDesignerReferenceV13');
   const select=record.ui.root.querySelector('.h3-preset-row select');
-  assert.deepEqual([...select.options].map(o=>o.value),['five','basic','turnaround','single','seven','head','clothing','detail','custom']);
-  assert.deepEqual([...select.options].map(o=>o.textContent),['Standard · 5 views','Basic · 4 views','Turnaround · 3','Single view','7 views · hands and feet','Head · 6 views','Clothing · front/back','All · 13 views','Custom']);
+  assert.deepEqual([...select.options].map(o=>o.value),['five','basic','turnaround','single','seven','head','clothing','detail','turnaround6','bust','body9','custom']);
+  assert.deepEqual([...select.options].map(o=>o.textContent),['Standard · 5 views','Basic · 4 views','Turnaround · 3','Single view','7 views · hands and feet','Head · 6 views','Clothing · front/back','All · 13 views','Body · 6 turnaround','Bust detail','Body · 9 views','Custom']);
   choose(select,'seven');
   assert.deepEqual(JSON.parse(item.serialize().widgets_values[0]).views,['face_front','face_left','body_front','body_left','body_back','hands','feet']);
+  choose(select,'turnaround6');
+  assert.deepEqual(JSON.parse(item.serialize().widgets_values[0]).views,['body_front','body_left','body_3q_left','body_right','body_3q_right','body_back']);
+  choose(select,'bust');
+  assert.deepEqual(JSON.parse(item.serialize().widgets_values[0]).views,['bust_front']);
+  choose(select,'body9');
+  assert.deepEqual(JSON.parse(item.serialize().widgets_values[0]).views,['body_front','body_left','body_3q_left','body_right','body_3q_right','body_back','bust_front','hands','feet']);
   choose(select,'clothing');assert.deepEqual(JSON.parse(item.serialize().widgets_values[0]).views,['clothing_front','clothing_back']);
 });
 

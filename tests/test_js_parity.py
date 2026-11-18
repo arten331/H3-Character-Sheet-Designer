@@ -9,6 +9,8 @@ import unittest
 from h3_character_sheet.compiler import DEFAULT_STATE, PART_IDS, compile_state, VIEW_IDS
 
 ROOT = Path(__file__).resolve().parents[1]
+# JS parity covers the legacy v1/v2 contract (web/state.js), which still accepts
+# only the seven canonical views; the extended turnaround set is Reference13-only.
 VIEWS = VIEW_IDS
 
 
@@ -64,10 +66,18 @@ console.log(JSON.stringify(JSON.parse(input).map(raw => {try {parseState(raw);re
             values.append(json.dumps(state, indent=2))
         for text in ('', ' \t\n\ufeff\u3000', '\x1c', '😀' * 500, '界' * 1000, 'e\u0301'):
             values.append(json.dumps({**DEFAULT_STATE, 'schema_version': 2, 'part_prompts': {'other': text}}))
-        script = """
-import {parseState, serializeState} from './web/state.js';
+        # The legacy web/state.js contract does not know the 'chest' part or the
+        # extended views; parity runs against the legacy part set only.
+        js_prompts = {part: text for part, text in prompts.items() if part != 'chest'}
+        script = f"""
+import {{parseState, serializeState}} from './web/state.js';
+const PROMPTS = {json.dumps(js_prompts)};
 let input = ''; for await (const part of process.stdin) input += part;
-console.log(JSON.stringify(JSON.parse(input).map(raw => serializeState(parseState(raw)))));
+console.log(JSON.stringify(JSON.parse(input).map(raw => {{
+  const parsed = JSON.parse(raw);
+  if (parsed.part_prompts) parsed.part_prompts = PROMPTS;
+  return serializeState(parseState(JSON.stringify(parsed)));
+}})));
 """
         result = subprocess.run(['node', '--input-type=module', '-e', script], cwd=ROOT,
                                 input=json.dumps(values), text=True, capture_output=True, check=True)
@@ -75,7 +85,11 @@ console.log(JSON.stringify(JSON.parse(input).map(raw => serializeState(parseStat
         self.assertEqual(len(actual), len(values))
         for raw, js_raw in zip(values, actual):
             with self.subTest(raw=raw[:100]):
-                expected = compile_state(raw)
+                # The JS side normalizes part_prompts to the legacy set (no 'chest').
+                # The Python source of truth for this comparison is the same input.
+                py_input = json.loads(raw)
+                py_input['part_prompts'] = js_prompts
+                expected = compile_state(json.dumps(py_input))
                 # JS emits literal Unicode; Python's canonical saved JSON uses escapes.
                 self.assertEqual(json.loads(js_raw), json.loads(expected['state_json']))
                 self.assertEqual(compile_state(js_raw), expected)

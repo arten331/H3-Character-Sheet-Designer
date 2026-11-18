@@ -22,7 +22,7 @@ class ViewPromptTests(unittest.TestCase):
                     self.assertEqual(restored['prompt'], result['prompt'])
                     self.assertEqual(result['layout'], baseline['layout'])
                     self.assertEqual(result['reference_plan'], baseline['reference_plan'])
-                    self.assertEqual(len(result['view_prompts']), 13)
+                    self.assertEqual(len(result['view_prompts']), 17)  # 13 legacy + 4 turnaround/bust views
                     for before, after in zip(baseline['view_prompts'], result['view_prompts']):
                         if before.startswith('Panel ' + view + ':'):
                             self.assertIn('Custom view instruction.\nSecond sentence.', after)
